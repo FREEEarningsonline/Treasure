@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Play & Earn - Treasure Win</title>
+    
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+
+    <style>
+        * { box-sizing: border-box; font-family: 'Arial Black', sans-serif; -webkit-tap-highlight-color: transparent; }
+        body { margin: 0; background-color: #1e5396; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+        /* Header */
+        .main-header {
+            background-color: #2e004f; padding: 12px 15px;
+            display: flex; justify-content: space-between; align-items: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3); z-index: 10;
+        }
+        .logo { color: #ffff00; font-size: 18px; font-weight: bold; }
+        .wallet-info { color: #ffff00; font-size: 14px; font-weight: bold; }
+        .profile-icon { color: #4a90e2; font-size: 35px; cursor: pointer; }
+
+        .container { flex: 1; display: flex; justify-content: center; align-items: center; padding: 15px; }
+        
+        /* Lobby Card */
+        .card {
+            background: #f0f7ff; width: 100%; max-width: 380px; border-radius: 30px;
+            padding: 30px 15px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+
+        /* Multi-color Title */
+        .title { font-size: 38px; margin: 0; line-height: 1; text-transform: uppercase; }
+        .row1 .c1 { color: #5b89bd; } .row1 .c2 { color: #7dbce6; } .row1 .c3 { color: #8fd6d3; } .row1 .c4 { color: #a4e499; }
+        .row1 .amp { color: #b7e883; } .row1 .w1 { color: #d6f16a; } .row1 .w2 { color: #f2f753; } .row1 .w3 { color: #f9f047; }
+        .row2 { font-size: 50px; margin-top: 5px; }
+        .row2 .n1 { color: #6a82fb; } .row2 .n2 { color: #5fc9f8; } .row2 .n3 { color: #48d1cc; } .row2 .n4 { color: #43e97b; }
+        .row2 .p1 { color: #a8e063; } .row2 .k1 { color: #f7df1e; } .row2 .r1 { color: #ffce00; }
+
+        .badge {
+            background: #ff8c00; color: white; display: inline-block; padding: 6px 15px;
+            border-radius: 20px; font-size: 12px; margin: 15px 0; font-weight: bold; border: 2px solid white;
+        }
+
+        /* Buttons */
+        .btn {
+            width: 100%; padding: 15px; margin: 8px 0; border-radius: 15px; border: none;
+            font-size: 15px; font-weight: bold; color: white; cursor: pointer;
+            box-shadow: 0 5px 0 rgba(0,0,0,0.2); transition: 0.1s;
+        }
+        .btn-red { background: linear-gradient(#ff5e57, #ff3b30); border-bottom: 4px solid #b3241d; }
+        .btn-green { background: linear-gradient(#56ef6f, #4cd964); border-bottom: 4px solid #28a745; }
+
+        /* Ludo Grid */
+        .ludo-grid {
+            display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr;
+            gap: 12px; width: 100%; max-width: 300px; aspect-ratio: 1/1; margin: 15px auto;
+        }
+        .corner { border-radius: 15px; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 3px solid white; position: relative; }
+        .red { background: #ff3b30; } .blue { background: #007aff; } .green { background: #4cd964; } .yellow { background: #ffcc00; }
+        .p-name { font-size: 11px; color: white; margin-bottom: 5px; text-shadow: 1px 1px 2px black; }
+
+        /* Box */
+        .box { width: 55px; height: 55px; position: relative; perspective: 600px; }
+        .box-lid { width: 100%; height: 40%; background: #ffd700; position: absolute; top: 0; transition: 0.5s; transform-origin: bottom; z-index: 2; border: 1.5px solid #b8860b; }
+        .box-body { width: 100%; height: 60%; background: #daa520; position: absolute; bottom: 0; border: 1.5px solid #b8860b; }
+        .box-content { position: absolute; top: 5px; width: 100%; text-align: center; font-size: 22px; opacity: 0; transition: 0.5s; }
+        .open .box-lid { transform: rotateX(-110deg); }
+        .open .box-content { opacity: 1; }
+        .shake { animation: shakeAnim 0.3s infinite; }
+        @keyframes shakeAnim { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(5deg); } 75% { transform: rotate(-5deg); } }
+
+        /* Winner Popup Modal */
+        .modal { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); display:flex; align-items:center; justify-content:center; z-index:1000; padding: 20px; }
+        .winner-card { background: white; padding: 30px; border-radius: 30px; text-align: center; border: 5px solid #ffcc00; width: 100%; max-width: 320px; }
+        .winner-card h1 { color: #ff3b30; margin-bottom: 10px; }
+        .winner-card p { font-size: 18px; font-weight: bold; color: #2e004f; }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <header class="main-header">
+        <div class="logo">Play & Earn</div>
+        <div class="wallet-info">PKR <span id="balance">0</span></div>
+        <div class="profile-icon" onclick="toggleAuth(true)">👤</div>
+    </header>
+
+    <!-- Lobby Screen -->
+    <div id="lobby-screen" class="container">
+        <div class="card">
+            <h1 class="title row1">
+                <span class="c1">P</span><span class="c2">L</span><span class="c3">A</span><span class="c4">Y</span> 
+                <span class="amp">&</span> 
+                <span class="w1">W</span><span class="w2">I</span><span class="w3">N</span>
+            </h1>
+            <h1 class="title row2">
+                <span class="n1">1</span><span class="n2">0</span><span class="n3">0</span><span class="n4">0</span><span class="p1">P</span><span class="k1">K</span><span class="r1">R</span>
+            </h1>
+            <div class="badge">★ Find the Hidden Treasure ★</div>
+            <button class="btn btn-red" onclick="startGame()">🤖 PLAY VS CPU (BET PKR 75)</button>
+            <button class="btn btn-green">👥 PRACTICE MODE</button>
+        </div>
+    </div>
+
+    <!-- Game Screen -->
+    <div id="game-screen" class="container hidden">
+        <div class="card">
+            <div id="status" style="color:#1e5396; margin-bottom:10px;">Click your RED box!</div>
+            <div class="ludo-grid">
+                <div class="corner red" onclick="userTap()">
+                    <span class="p-name">USER</span>
+                    <div class="box" id="b0"><div class="box-lid"></div><div class="box-body"></div><div class="box-content"></div></div>
+                </div>
+                <div class="corner blue">
+                    <span class="p-name" id="cpu1-n">CPU 1</span>
+                    <div class="box" id="b1"><div class="box-lid"></div><div class="box-body"></div><div class="box-content"></div></div>
+                </div>
+                <div class="corner green">
+                    <span class="p-name" id="cpu2-n">CPU 2</span>
+                    <div class="box" id="b2"><div class="box-lid"></div><div class="box-body"></div><div class="box-content"></div></div>
+                </div>
+                <div class="corner yellow">
+                    <span class="p-name" id="cpu3-n">CPU 3</span>
+                    <div class="box" id="b3"><div class="box-lid"></div><div class="box-body"></div><div class="box-content"></div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Result Popup Modal -->
+    <div id="result-modal" class="modal hidden">
+        <div class="winner-card">
+            <h1 id="win-status">WINNER!</h1>
+            <p id="win-msg"></p>
+            <div id="win-icon" style="font-size: 50px; margin: 10px 0;">💰</div>
+            <button class="btn btn-green" onclick="location.reload()">PLAY AGAIN</button>
+        </div>
+    </div>
+
+    <!-- Auth Modal -->
+    <div id="auth-modal" class="modal hidden">
+        <div class="card" style="max-width:300px;">
+            <h3>Login</h3>
+            <input type="email" id="email" placeholder="Email" style="width:100%; padding:12px; margin:8px 0; border-radius:10px; border:1px solid #ccc;">
+            <input type="password" id="pass" placeholder="Password" style="width:100%; padding:12px; margin:8px 0; border-radius:10px; border:1px solid #ccc;">
+            <button class="btn btn-red" onclick="handleAuth()">Submit</button>
+            <button class="btn btn-green" onclick="toggleAuth(false)">Close</button>
+        </div>
+    </div>
+
+    <!-- Import JavaScript -->
+    <script src="script.js"></script>
+</body>
+</html>
